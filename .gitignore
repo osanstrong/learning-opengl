@@ -1,7 +1,7 @@
 .vscode/*
-build/*
+**/build/*
 **/CMakeCache.txt
-CMakeFiles/*
+**/CMakeFiles/*
 **/Makefile
 **/cmake_install.cmake
 data/*
