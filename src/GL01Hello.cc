@@ -2,6 +2,7 @@
  * Test OpenGL C++ setup
  */
 
+#include <GL/gl.h> // GL include goes first to ensure types are declared properly
 #include <GL/glext.h>
 #include <iostream>
 #include <fstream>
@@ -39,15 +40,15 @@ void display() {
 
 
   // // 1 x 1 Red Square centered at origin
-  // glBegin(GL_QUADS);
-  //     glColor3f(1.0f, 0.0f, 0.0f);
-  //     glVertex2f(-0.5f, -0.5f);
-  //     glVertex2f( 0.5f, -0.5f);
-  //     glVertex2f( 0.5f,  0.5f);
-  //     glVertex2f(-0.5f,  0.5f);
-  // glEnd();
+  glBegin(GL_QUADS);
+      glColor3f(1.0f, 0.0f, 0.0f);
+      glVertex2f(-0.5f, -0.5f);
+      glVertex2f( 0.5f, -0.5f);
+      glVertex2f( 0.5f,  0.5f);
+      glVertex2f(-0.5f,  0.5f);
+  glEnd();
 
-  // glFlush(); // Push to screen
+  glFlush(); // Push to screen
 
   // // Make image vertices and use those actually here we go
   // float vertices[] = {
