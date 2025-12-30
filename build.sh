@@ -6,5 +6,14 @@
 # g++ -o build/main build/lib/GL01Hello.so
 
 # Todo later: Actually figure out how to split this into so and executable commandss
-g++ -O0 -g3 -o build/main src/GL01Hello.cpp -lglut -lGL -Iinclude/
-build/main
+# g++ -O0 -g3 -o build/main src/GL01Hello.cpp -lglut -lGL -Iinclude/
+
+
+
+
+
+# Configure, then build, and then test
+cmake --log-level=VERBOSE -B build
+if cmake --build build; then
+    build/main
+fi
