@@ -1,2 +1,8 @@
 .vscode/*
 build/*
+**/CMakeCache.txt
+CMakeFiles/*
+**/Makefile
+**/cmake_install.cmake
+data/*
+FirstSteps/old-spack-logs/*
