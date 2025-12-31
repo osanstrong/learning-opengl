@@ -7,6 +7,10 @@
 #include <iostream>
 #include <stb_image.hh>
 
+void processInput(GLFWwindow *window) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+}
 
 int main(int argc, char** argv) {
 
@@ -31,7 +35,16 @@ int main(int argc, char** argv) {
     };  
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    // Main Render Loop
     while (!glfwWindowShouldClose(window)) {
+        // Process input
+        processInput(window);
+
+        // Actual Rendering
+        glClearColor(1.0f, 0.5f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // Push to screen
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
