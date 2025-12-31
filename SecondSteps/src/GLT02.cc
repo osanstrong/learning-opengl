@@ -2,8 +2,9 @@
  * Following tutorial at https://learnopengl.com/Getting-started
  */
 
-#include <GL/gl.h> // gl.h first to avoid typedef issues
-#include <GLFW/glfw3.h> //
+// #include <GL/gl.h>
+#include <glad/glad.h> // include glad (which has GL/gl.h) first to avoid typedef issues
+#include <GLFW/glfw3.h> 
 #include <iostream>
 #include <stb_image.hh>
 
@@ -27,6 +28,7 @@ int main(int argc, char** argv) {
         return -1;
     }
     glfwMakeContextCurrent(window);
+    gladLoadGL(); // Must be called after creating and contextualizing window    https://stackoverflow.com/questions/59960792/segmentation-fault-when-including-glad-h
     
     // Viewport adjustment
     glViewport(0, 0, 400, 300);
@@ -35,13 +37,23 @@ int main(int argc, char** argv) {
     };  
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    // Prepare triangle for the screen
+    float vertices[] = {
+        -0.5f, -0.5f, 0.0f,
+        0.5f, -0.5f, 0.0f,
+        0.0f,  0.5f, 0.0f
+    };
+    unsigned int VBO;
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+
     // Main Render Loop
     while (!glfwWindowShouldClose(window)) {
         // Process input
         processInput(window);
 
         // Actual Rendering
-        glClearColor(1.0f, 0.5f, 0.0f, 1.0f);
+        glClearColor(0.1f, 0.5f, 0.6f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         // Push to screen

@@ -16,6 +16,7 @@ target_link_libraries(main
         util
         OpenGL::GL
         glfw
+        glad
 )
 
 add_library(util)
@@ -26,6 +27,19 @@ target_sources(util
             include
         FILES
             include/stb_image.hh
+)
+
+add_library(glad)
+target_sources(glad
+    PRIVATE
+        src/glad.c
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/glad/glad.h
+            include/KHR/khrplatform.h
 )
 
 set_target_properties(util PROPERTIES LINKER_LANGUAGE CXX)
