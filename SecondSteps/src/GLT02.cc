@@ -10,6 +10,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.hh>
 
+// Timer 
+#include <chrono>
+using time_point = std::chrono::steady_clock::time_point;
+#define clock std::chrono::steady_clock
+
 // OpenGL error codes that were undefined for some reason
 #define GL_STACK_OVERFLOW 0x0503
 #define GL_STACK_UNDERFLOW 0x0504
@@ -17,6 +22,9 @@
 // Window size 
 int win_width = 400;
 int win_height = 300;
+
+// Total elapsed time
+float elapsed_time = 0;
 
 
 
@@ -28,7 +36,6 @@ std::string file_to_string(std::string filename) {
     while (std::getline (readFile, textIter)) {
         target += textIter + "\n";
     }
-    std::cout << target << std::endl;
     return target;
 }
 
@@ -128,7 +135,7 @@ void processInput(GLFWwindow *window) {
 }
 
 int main(int argc, char** argv) {
-
+    
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -218,10 +225,13 @@ int main(int argc, char** argv) {
         2, 3, 0
     };
     
-    // Initialize shader and tell it how to interpret our vertex data
+    // Original two-texture shader
     unsigned int shader;
     generateShader(shader, "./src/shad/tex_vert.vert", "./src/shad/tex_frag.frag");
     
+    // Shader for framebuffer display
+    unsigned int screen_shader;
+    generateShader(screen_shader, "./src/shad/screen_vert.vert", "./src/shad/screen_frag.frag");
 
     int success;
     char infoLog[512];
@@ -267,36 +277,132 @@ int main(int argc, char** argv) {
     glUniform1i(glGetUniformLocation(shader, "u_texture1"), 0);
     glUniform1i(glGetUniformLocation(shader, "u_texture2"), 1);
 
-    
-    // Configure framebuffer
+    // Vertices and array objects for screenspace stuff
+    float quad_verts[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
 
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+    // screen quad VAO
+    unsigned int quadVAO, quadVBO;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_verts), &quad_verts, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+    
+    // Configure framebuffer/renderbuffer to store output intermediate
+    unsigned int fbo;
+    glCheckError();
+    glGenFramebuffers(1, &fbo);
+    glCheckError();
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    // Generate texture for frame buffer
+    unsigned int tex_colorBuffer;
+    glCheckError();
+    glGenTextures(1, &tex_colorBuffer);
+    glCheckError();
+    glBindTexture(GL_TEXTURE_2D, tex_colorBuffer);
+    glCheckError();
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, win_width, win_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL); // Null because we fill it with the fbo output
+    glCheckError();
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glCheckError();
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);   
+    glCheckError();
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_colorBuffer, 0);
+    glCheckError();
+    // Render buffer object for the other stuff bc we don't actually need to use it
+    unsigned int rbo;
+    glCheckError();
+    glGenRenderbuffers(1, &rbo);
+    glCheckError();
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glCheckError();
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, win_width, win_height);
+    glCheckError();
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glCheckError();
+    // Attach rbo to depth and stencil attachments
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    glCheckError();
+    // See if we set it up correctly
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+    glCheckError();
+
+    time_point start = clock::now();
+    time_point last = start;
 
     // Main Render Loop
     while (!glfwWindowShouldClose(window)) {
         // Process input
         processInput(window);
 
-        // Actual Rendering
-        glClearColor(0.1f, 0.5f, 0.6f, 1.0f);
+        // Bind framebuffer before rendering scene as normal
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        // glEnable(GL_DEPTH_TEST); // Enable for original scene, though our mini test doesn't use it
+            // Actual Rendering
+            glClearColor(0.1f, 0.5f, 0.6f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // We don't use the depth buffer here but for completion
+
+            glUseProgram(shader);
+            glCheckError();
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture1);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, texture2);
+            glCheckError();
+
+
+            glBindVertexArray(VAO);
+            glCheckError();
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glCheckError();
+            glBindVertexArray(0);
+        
+        //Then bind back to default framebuffer and draw quad using that fbo's texture
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_DEPTH_TEST); // no depth testing
+        //Clear buffers
+        float bright = 0.8f;
+        glClearColor(bright, bright, bright, 1.0f); // Different color to make it clear
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(shader);
-        glCheckError();
+        glUseProgram(screen_shader);
+        float shift = std::sin(elapsed_time*2) * 0.5f;
+        float shift_y = std::cos(elapsed_time*2) * 0.5f;
+        glUniform1f(glGetUniformLocation(screen_shader, "u_shift"), shift);
+        glUniform1f(glGetUniformLocation(screen_shader, "u_shiftY"), shift_y);
+
+        glBindVertexArray(quadVAO);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture2);
-        glCheckError();
+        glBindTexture(GL_TEXTURE_2D, tex_colorBuffer);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-
-        glBindVertexArray(VAO);
-        glCheckError();
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        glCheckError();
-        glBindVertexArray(0);
         // Push to screen
         glfwSwapBuffers(window);
         glfwPollEvents();
+
+        time_point next = clock::now();
+        auto diff = std::chrono::duration_cast<std::chrono::microseconds>(next - last).count() / 1000.0f;
+
+        elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(next - start).count() / 1000000.0f;
+        // std::cout << "Time elapsed (s): " << elapsed_time << std::endl;
+        last = next;
+
+
     }
 
     glfwTerminate();
